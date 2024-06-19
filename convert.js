@@ -10,55 +10,64 @@ const { exec } = require("shelljs");
 const fs = require("fs");
 const path = require("path");
 const urlLib = require("url");
+const { Command } = require("commander");
+const program = new Command();
 
-const args = process.argv.slice(2);
-if (args.length !== 1) {
-  console.error("Please provide the URL as the first argument.");
-  process.exit(1);
-}
+program
+  .name("Rust Book Converter")
+  .description("Convert Rust book to EPUB format")
+  .version("1.0.0")
+  .requiredOption("-o, --output <outputFile>", "Output EPUB filename")
+  .argument("<url>", "URL of the Rust book")
+  .addHelpText(
+    "after",
+    `
+Example usage:
+  ./convert.js https://doc.rust-lang.org/stable/book/ --output rust-book.epub`,
+  )
+  .action(async (url, options) => {
+    const printUrl = url.endsWith("/")
+      ? `${url}print.html`
+      : `${url}/print.html`;
+    const outputFile = options.output;
+    const inputFile = "rust_book.html";
 
-const url = args[0];
-const printUrl = url.endsWith("/") ? `${url}print.html` : `${url}/print.html`;
-const inputFile = "rust_book.html";
-const outputFile = "rust_book.epub";
-const imagesFolder = "./img/";
+    try {
+      // Step 1: Fetch the HTML content
+      const response = await axios.get(printUrl);
+      const html = response.data;
 
-async function main() {
-  try {
-    // Step 1: Fetch the HTML content
-    const response = await axios.get(printUrl);
-    const html = response.data;
+      // Step 2: Load HTML content into Cheerio for manipulation
+      const $ = cheerio.load(html);
 
-    // Step 2: Load HTML content into Cheerio for manipulation
-    const $ = cheerio.load(html);
+      // Step 3: Download images and update src attributes
+      await downloadImages($, url);
 
-    // Step 3: Download images and update src attributes
-    await downloadImages($, url);
+      // Step 4: Apply transformations using Cheerio
+      applyTransformations($);
 
-    // Step 4: Apply transformations using Cheerio
-    applyTransformations($);
+      // Step 5: Save modified HTML content to a file
+      fs.writeFileSync(inputFile, $.html());
 
-    // Step 5: Save modified HTML content to a file
-    fs.writeFileSync(inputFile, $.html());
+      // Step 6: Convert HTML to EPUB using pandoc
+      const pandocCommand = `pandoc ${inputFile} --to=epub --output=${outputFile}`;
+      exec(pandocCommand);
 
-    // Step 6: Convert HTML to EPUB using pandoc
-    const pandocCommand = `pandoc ${inputFile} --to=epub --output=${outputFile}`;
-    exec(pandocCommand);
+      console.log(`Conversion completed. EPUB file saved as ${outputFile}`);
+    } catch (error) {
+      console.error("Error during conversion:", error);
+    }
+  });
 
-    console.log(`Conversion completed. EPUB file saved as ${outputFile}`);
-  } catch (error) {
-    console.error("Error during conversion:", error);
-  }
-}
-
-async function downloadImages($, baseUrl) {
+async function downloadImages($, url) {
   // Ensure `./img/` directory exists
+  const imagesFolder = "./img/";
   if (!fs.existsSync(imagesFolder)) {
     fs.mkdirSync(imagesFolder);
   }
 
   const promises = [];
-  $("img").each((index, element) => {
+  $("img").each((_, element) => {
     const imagePath = $(element).attr("src");
     const imageUrl = url.endsWith("/")
       ? `${url}${imagePath}`
@@ -95,7 +104,7 @@ function applyTransformations($) {
   ).remove();
 
   // Modify anchor tags
-  $(":is(h1,h2,h3,h4,h5,h6) a").each((index, element) => {
+  $(":is(h1,h2,h3,h4,h5,h6) a").each((_, element) => {
     const $span = $("<span>").text($(element).text());
     $(element).replaceWith($span);
   });
@@ -105,7 +114,7 @@ function applyTransformations($) {
   const $tableOfContents = $("<ol>");
   $secondSection.before($tableOfContents);
 
-  $("h1, h2").each((index, heading) => {
+  $("h1, h2").each((_, heading) => {
     const $link = $("<a>")
       .attr("href", `#${heading.attribs.id}`)
       .text($(heading).text());
@@ -126,18 +135,18 @@ function applyTransformations($) {
   $(".buttons").remove();
 
   // Move Ferris images
-  $("pre .ferris-container img.ferris").each((index, ferris) => {
+  $("pre .ferris-container img.ferris").each((_, ferris) => {
     const $parentCodeBlock = $(ferris).closest("pre");
     $parentCodeBlock.before($(ferris));
   });
 
   // Flatten code blocks
-  $("pre pre").each((index, pre) => {
+  $("pre pre").each((_, pre) => {
     $(pre).replaceWith($(pre).html());
   });
 
   // Remove syntax highlighter
-  $("pre code").each((index, code) => {
+  $("pre code").each((_, code) => {
     const match = /language-([^ ]*)/gi.exec(code.attribs.class);
     if (match && match[1]) {
       $(code).removeAttr("class");
@@ -153,7 +162,7 @@ function applyTransformations($) {
 
   // Unfold details element
   $("details summary").remove();
-  $("details").each((index, details) => {
+  $("details").each((_, details) => {
     $(details).replaceWith($(details).html());
   });
 
@@ -163,4 +172,4 @@ function applyTransformations($) {
   $(".page").css("margin-top", "0");
 }
 
-main();
+program.parse(process.argv);
