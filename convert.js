@@ -2,7 +2,7 @@
 
 // This code is heavily based on the following gist:
 // https://gist.github.com/peterbartha/54708ae739478a45b52612311d49717c
-// Credit to https://gist.github.com/peterbartha
+// Credit to https://github.com/peterbartha
 
 const axios = require("axios");
 const cheerio = require("cheerio");
@@ -17,7 +17,7 @@ program
   .name("Rust Book Converter")
   .description("Convert Rust book to EPUB format")
   .version("1.0.0")
-  .requiredOption("-o, --output <outputFile>", "Output EPUB filename")
+  .requiredOption("-o, --output <outputFile>", "EPUB filename")
   .argument("<url>", "URL of the Rust book")
   .addHelpText(
     "after",
