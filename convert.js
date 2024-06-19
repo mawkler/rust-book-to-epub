@@ -20,9 +20,9 @@ function getFilename($, options) {
     outputFile = options.output;
   } else {
     // Attempt to find menu-title element
-    const menuTitleText = $("h1.menu-title").first().text().trim();
-    if (menuTitleText) {
-      outputFile = `${menuTitleText}.epub`;
+    const menuTitleHeader = $("h1.menu-title").first().text().trim();
+    if (menuTitleHeader) {
+      outputFile = menuTitleHeader;
     } else {
       throw new Error(
         "Unable to determine output filename. Use flag `--output` to set it manually.",
