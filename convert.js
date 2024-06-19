@@ -13,10 +13,29 @@ const urlLib = require("url");
 const { Command } = require("commander");
 const program = new Command();
 
+// Fetches output file name from HTML. If flag `-o`/`--output` is set, use that instead
+function getFilename($, options) {
+  let outputFile;
+  if (options.output) {
+    outputFile = options.output;
+  } else {
+    // Attempt to find menu-title element
+    const menuTitleText = $("h1.menu-title").first().text().trim();
+    if (menuTitleText) {
+      outputFile = `${menuTitleText}.epub`;
+    } else {
+      throw new Error(
+        "Unable to determine output filename. Use flag `--output` to set it manually.",
+      );
+    }
+  }
+  return outputFile;
+}
+
 program
   .description("Convert Rust book to EPUB format")
   .version("1.0.0")
-  .requiredOption("-o, --output <outputFile>", "EPUB filename")
+  .option("-o, --output <outputFile>", "EPUB filename")
   .argument("<url>", "URL of the Rust book")
   .addHelpText(
     "after",
@@ -28,31 +47,34 @@ Example usage:
     const printUrl = url.endsWith("/")
       ? `${url}print.html`
       : `${url}/print.html`;
-    const outputFile = options.output;
-    const inputFile = "rust_book.html";
 
     try {
-      // Step 1: Fetch the HTML content
+      // Fetch the HTML content
       const response = await axios.get(printUrl);
       const html = response.data;
 
-      // Step 2: Load HTML content into Cheerio for manipulation
+      // Load HTML content into Cheerio for manipulation
       const $ = cheerio.load(html);
 
-      // Step 3: Download images and update src attributes
+      // Determine output file name
+      const filename = getFilename($, options);
+
+      // Download images and update src attributes
       await downloadImages($, url);
 
-      // Step 4: Apply transformations using Cheerio
+      // Apply transformations using Cheerio
       applyTransformations($);
 
-      // Step 5: Save modified HTML content to a file
-      fs.writeFileSync(inputFile, $.html());
+      // Save modified HTML content to a file
+      const htmlFile = `${filename}.html`;
+      fs.writeFileSync(htmlFile, $.html());
 
       // Step 6: Convert HTML to EPUB using pandoc
-      const pandocCommand = `pandoc ${inputFile} --to=epub --output=${outputFile}`;
+      const epubFile = `${filename}.epub`;
+      const pandocCommand = `pandoc '${htmlFile}' --to=epub --output='${epubFile}'`;
       exec(pandocCommand);
 
-      console.log(`Conversion completed. EPUB file saved as ${outputFile}`);
+      console.log(`Conversion completed. EPUB file saved as ${epubFile}`);
     } catch (error) {
       console.error("Error during conversion:", error);
     }
