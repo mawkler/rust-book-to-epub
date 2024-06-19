@@ -22,7 +22,7 @@ Options:
   -h, --help                 display help for command
 
 Example usage:
-  ./convert.js https://doc.rust-lang.org/stable/book/ --output rust-book.epub
+  ./convert.js https://doc.rust-lang.org/stable/book/
 ```
 
 ## Credit

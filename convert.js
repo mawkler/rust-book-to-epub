@@ -41,7 +41,7 @@ program
     "after",
     `
 Example usage:
-  ./convert.js https://doc.rust-lang.org/stable/book/ --output rust-book.epub`,
+  ./convert.js https://doc.rust-lang.org/stable/book/`,
   )
   .action(async (url, options) => {
     const printUrl = url.endsWith("/")
