@@ -8,6 +8,8 @@ const axios = require("axios");
 const cheerio = require("cheerio");
 const { exec } = require("shelljs");
 const fs = require("fs");
+const path = require("path");
+const urlLib = require("url");
 
 const args = process.argv.slice(2);
 if (args.length !== 1) {
@@ -19,6 +21,7 @@ const url = args[0];
 const printUrl = url.endsWith("/") ? `${url}print.html` : `${url}/print.html`;
 const inputFile = "rust_book.html";
 const outputFile = "rust_book.epub";
+const imagesFolder = "./img/";
 
 async function main() {
   try {
@@ -29,13 +32,16 @@ async function main() {
     // Step 2: Load HTML content into Cheerio for manipulation
     const $ = cheerio.load(html);
 
-    // Step 3: Apply transformations using Cheerio
+    // Step 3: Download images and update src attributes
+    await downloadImages($, url);
+
+    // Step 4: Apply transformations using Cheerio
     applyTransformations($);
 
-    // Step 4: Save modified HTML content to a file
+    // Step 5: Save modified HTML content to a file
     fs.writeFileSync(inputFile, $.html());
 
-    // Step 5: Convert HTML to EPUB using pandoc
+    // Step 6: Convert HTML to EPUB using pandoc
     const pandocCommand = `pandoc ${inputFile} --to=epub --output=${outputFile}`;
     exec(pandocCommand);
 
@@ -43,6 +49,41 @@ async function main() {
   } catch (error) {
     console.error("Error during conversion:", error);
   }
+}
+
+async function downloadImages($, baseUrl) {
+  // Ensure `./img/` directory exists
+  if (!fs.existsSync(imagesFolder)) {
+    fs.mkdirSync(imagesFolder);
+  }
+
+  const promises = [];
+  $("img").each((index, element) => {
+    const imagePath = $(element).attr("src");
+    const imageUrl = url.endsWith("/")
+      ? `${url}${imagePath}`
+      : `${url}/${imagePath}`;
+    const filename = path.basename(urlLib.parse(imagePath).pathname);
+    const localImagePath = path.join(imagesFolder, filename);
+
+    promises.push(
+      axios({
+        url: imageUrl,
+        responseType: "arraybuffer",
+      })
+        .then((response) => {
+          const imageData = Buffer.from(response.data, "binary");
+          fs.writeFileSync(localImagePath, imageData);
+          // Update src attribute to include original URL
+          $(element).attr("src", path.join(imagesFolder, filename));
+        })
+        .catch((error) => {
+          console.error(`Failed to download image ${imagePath}:`, error);
+        }),
+    );
+  });
+
+  await Promise.all(promises);
 }
 
 function applyTransformations($) {
@@ -83,14 +124,6 @@ function applyTransformations($) {
 
   // Remove buttons
   $(".buttons").remove();
-
-  // Modify image URLs
-  $("img").each((index, img) => {
-    const src = $(img).attr("src");
-    if (src && src.startsWith("/")) {
-      $(img).attr("src", `${url}${src}`);
-    }
-  });
 
   // Move Ferris images
   $("pre .ferris-container img.ferris").each((index, ferris) => {
