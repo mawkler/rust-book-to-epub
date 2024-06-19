@@ -9,7 +9,7 @@ Clone this repo, and then run `npm install` from inside the repo.
 ## Usage
 
 ```
-Usage: Rust Book Converter [options] <url>
+Usage: convert [options] <url>
 
 Convert Rust book to EPUB format
 
@@ -18,11 +18,11 @@ Arguments:
 
 Options:
   -V, --version              output the version number
-  -o, --output <outputFile>  Output EPUB filename
+  -o, --output <outputFile>  EPUB filename
   -h, --help                 display help for command
 
 Example usage:
-  ./convert.js https://doc.rust-lang.org/stable/book/ -o rust-book.epub
+  ./convert.js https://doc.rust-lang.org/stable/book/ --output rust-book.epub
 ```
 
 ## Credit

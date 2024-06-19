@@ -14,7 +14,6 @@ const { Command } = require("commander");
 const program = new Command();
 
 program
-  .name("Rust Book Converter")
   .description("Convert Rust book to EPUB format")
   .version("1.0.0")
   .requiredOption("-o, --output <outputFile>", "EPUB filename")
