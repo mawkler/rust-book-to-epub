@@ -9,20 +9,27 @@ const cheerio = require("cheerio");
 const { exec } = require("shelljs");
 const fs = require("fs");
 
-const URL = "https://rust-unofficial.github.io/patterns/print.html";
+const args = process.argv.slice(2);
+if (args.length !== 1) {
+  console.error("Please provide the URL as the first argument.");
+  process.exit(1);
+}
+
+const url = args[0];
+const printUrl = url.endsWith("/") ? `${url}print.html` : `${url}/print.html`;
 const inputFile = "rust_book.html";
 const outputFile = "rust_book.epub";
 
 async function main() {
   try {
     // Step 1: Fetch the HTML content
-    const response = await axios.get(URL);
+    const response = await axios.get(printUrl);
     const html = response.data;
 
     // Step 2: Load HTML content into Cheerio for manipulation
     const $ = cheerio.load(html);
 
-    // Step 3: Apply transformations using Cheerio (similar to jQuery)
+    // Step 3: Apply transformations using Cheerio
     applyTransformations($);
 
     // Step 4: Save modified HTML content to a file
@@ -81,7 +88,7 @@ function applyTransformations($) {
   $("img").each((index, img) => {
     const src = $(img).attr("src");
     if (src && src.startsWith("/")) {
-      $(img).attr("src", `https://rust-lang.github.io/book/${src}`);
+      $(img).attr("src", `${url}${src}`);
     }
   });
 
