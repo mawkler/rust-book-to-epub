@@ -11,6 +11,7 @@ const fs = require("fs");
 const path = require("path");
 const urlLib = require("url");
 const { Command } = require("commander");
+const tmp = require("tmp-promise");
 const program = new Command();
 
 // Fetches output file name from HTML. If flag `-o`/`--output` is set, use that instead
@@ -49,6 +50,13 @@ Example usage:
       : `${url}/print.html`;
 
     try {
+      // Create a temporary directory for storing downloaded files
+      const tempDir = await tmp.dir({ unsafeCleanup: true });
+      const tempPath = tempDir.path;
+
+      const tempImagesFolder = path.join(tempPath, "img");
+      fs.mkdirSync(tempImagesFolder);
+
       // Fetch the HTML content
       const response = await axios.get(printUrl);
       const html = response.data;
@@ -59,34 +67,31 @@ Example usage:
       // Determine output file name
       const filename = getFilename($, options);
 
-      // Download images and update src attributes
-      await downloadImages($, url);
+      // Download images to temporary directory and update src attributes
+      await downloadImages($, url, tempImagesFolder);
 
       // Apply transformations using Cheerio
       applyTransformations($);
 
-      // Save modified HTML content to a file
-      const htmlFile = `${filename}.html`;
+      // Save modified HTML content to a temporary file
+      const htmlFile = path.join(tempPath, `${filename}.html`);
       fs.writeFileSync(htmlFile, $.html());
 
-      // Step 6: Convert HTML to EPUB using pandoc
+      // Convert HTML to EPUB using pandoc
       const epubFile = `${filename}.epub`;
-      const pandocCommand = `pandoc '${htmlFile}' --to=epub --output='${epubFile}'`;
+      const pandocCommand = `pandoc --resource-path '${tempPath}' '${htmlFile}' --to epub --output '${epubFile}'`;
       exec(pandocCommand);
 
-      console.log(`Conversion completed. EPUB file saved as ${epubFile}`);
+      console.log(`Conversion completed. EPUB file saved as '${epubFile}'`);
+
+      // Clean up temporary directory
+      tempDir.cleanup();
     } catch (error) {
       console.error("Error during conversion:", error);
     }
   });
 
-async function downloadImages($, url) {
-  // Ensure `./img/` directory exists
-  const imagesFolder = "./img/";
-  if (!fs.existsSync(imagesFolder)) {
-    fs.mkdirSync(imagesFolder);
-  }
-
+async function downloadImages($, url, tempImagesFolder) {
   const promises = [];
   $("img").each((_, element) => {
     const imagePath = $(element).attr("src");
@@ -94,7 +99,7 @@ async function downloadImages($, url) {
       ? `${url}${imagePath}`
       : `${url}/${imagePath}`;
     const filename = path.basename(urlLib.parse(imagePath).pathname);
-    const localImagePath = path.join(imagesFolder, filename);
+    const localImagePath = path.join(tempImagesFolder, filename);
 
     promises.push(
       axios({
@@ -105,7 +110,7 @@ async function downloadImages($, url) {
           const imageData = Buffer.from(response.data, "binary");
           fs.writeFileSync(localImagePath, imageData);
           // Update src attribute to include original URL
-          $(element).attr("src", path.join(imagesFolder, filename));
+          $(element).attr("src", path.join("img", filename));
         })
         .catch((error) => {
           console.error(`Failed to download image ${imagePath}:`, error);

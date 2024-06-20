@@ -12,6 +12,7 @@
     "axios": "^1.7.2",
     "cheerio": "^1.0.0-rc.12",
     "commander": "^12.1.0",
-    "shelljs": "^0.8.5"
+    "shelljs": "^0.8.5",
+    "tmp-promise": "^3.0.3"
   }
 }
