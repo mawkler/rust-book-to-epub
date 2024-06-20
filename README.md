@@ -25,6 +25,18 @@ Example usage:
   ./convert.js https://doc.rust-lang.org/stable/book/
 ```
 
+### To download multiple books at once
+
+You can use the UNIX command [parallel](https://linux.die.net/man/1/parallel) to download multiple books at once:
+
+```sh
+echo 'https://rust-unofficial.github.io/patterns/
+https://rust-hosted-langs.github.io/book
+https://wubingzheng.github.io/build-lua-in-rust/en/' | parallel ./convert.js
+```
+
+Make sure to not have any blank lines. Note the placement of `'`s.
+
 ## Credit
 
 I built this script from [this Gist](https://gist.github.com/peterbartha/54708ae739478a45b52612311d49717c) and a lot of proompting. Thanks to https://github.com/peterbartha for creating the original gist! Compared to the original, this version also downloads images and embeds them into the EPUB as well.
